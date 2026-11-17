@@ -33,7 +33,24 @@ npm run build
 npm start                 # http://localhost:8787
 ```
 
-## Auf dem iPhone nutzen (ohne Computer, über Render)
+## Auf dem iPhone nutzen: GitHub Pages (kostenlos, empfohlen)
+
+Die App läuft als Webseite auf GitHub Pages, ganz ohne eigenen Server. Die KI wird direkt vom iPhone aus angesprochen. Dein API-Schlüssel und deine Daten bleiben **nur auf deinem Gerät** und landen nie auf GitHub.
+
+**Einmalig einrichten** (geht im iPhone-Browser):
+
+1. Auf github.com im Repository: **Settings → Pages → Source: „GitHub Actions“** auswählen.
+2. Den Code in den Branch `main` bringen (Pull Request mergen). Danach baut GitHub die App automatisch. Unter **Actions** siehst du den Fortschritt.
+3. Die App öffnen: `https://<dein-github-name>.github.io/Sportwetten/`
+4. Beim ersten Start deinen Anthropic-API-Schlüssel eingeben. Die App prüft ihn sofort.
+5. In Safari **Teilen → „Zum Home-Bildschirm“**.
+
+**Wichtig:**
+- Deine Wetten und Chats liegen in der Browser-Datenbank des iPhones. Lege die App auf den Home-Bildschirm und speichere ab und zu unter **Einstellungen → Sicherung speichern** ein Backup.
+- Im Anthropic-Konto muss Guthaben vorhanden sein (console.anthropic.com → Plans & Billing).
+- Die Seite selbst ist öffentlich erreichbar, enthält aber keine Schlüssel. Ohne eigenen Schlüssel sieht ein Besucher nur den Demo-Modus.
+
+## Alternative: Server bei Render
 
 Render holt die App direkt aus diesem GitHub-Repository und lässt sie dauerhaft online laufen. Alles geht im iPhone-Browser.
 
@@ -78,19 +95,23 @@ The Odds API liefert für Fußball keine bet365-Quoten, dafür die Quoten vieler
 npm test                  # automatische Tests (Statistiken, Live-Quoten, Login)
 ```
 
-GitHub Actions führt bei jedem Push die Tests und den Build aus (`.github/workflows/ci.yml`).
+GitHub Actions führt bei jedem Push die Tests und den Build aus (`.github/workflows/ci.yml`) und veröffentlicht `main` auf GitHub Pages (`.github/workflows/pages.yml`).
 
 **Aufbau**
 
 ```
-server/
-  index.js     Express-Server, KI-Chat (Streaming), Wetten-API
-  auth.js      Login mit Passwort und Cookie, Sperre nach Fehlversuchen
+shared/
+  engine.js    KI-Chat-Logik (Claude, Websuche, Karten), von Server und Browser genutzt
   prompt.js    Experten-Systemprompt und Tool-Definitionen
   odds.js      Live-Quoten (The Odds API)
   demo.js      Demo-Modus ohne API-Schlüssel
+server/
+  index.js     Express-Server, KI-Chat (Streaming), Wetten-API
+  auth.js      Login mit Passwort und Cookie, Sperre nach Fehlversuchen
   store.js     Speicherung als JSON in data/
 client/src/
+  local/                  Browser-Variante: direkter KI-Zugriff, Speicherung in IndexedDB, Backup
+  components/Settings.jsx Schlüssel und Backup (GitHub-Pages-Variante)
   App.jsx                 Layout, Navigation, Gewinn-Effekte
   components/Chat.jsx     KI-Chat mit Live-Recherche-Anzeige
   components/Cards.jsx    Analyse-, Kombi- und Wettschein-Karten
@@ -98,6 +119,8 @@ client/src/
   sound.js                Soundeffekte (Web Audio, keine Dateien)
 test/                     Automatische Tests
 ```
+
+**Zwei Betriebsarten:** `npm run build` baut die Server-Variante (Render, Docker), `npm run build:pages` die Browser-Variante für GitHub Pages. Die KI-Logik in `shared/engine.js` nutzen beide.
 
 **Technik:** React 19, Vite, Framer Motion, Express 5, Claude API (`claude-opus-5-5` mit Websuche, Web-Abruf und adaptivem Denken)
 

@@ -126,7 +126,7 @@ function UserMessage({ msg }) {
   );
 }
 
-export default function Chat({ conversationId, initialMessages, onConversation, onBet, onBusy, demo, toast }) {
+export default function Chat({ conversationId, initialMessages, onConversation, onBet, onBusy, demo, toast, onOpenSettings }) {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState('');
   const [images, setImages] = useState([]);
@@ -284,9 +284,15 @@ export default function Chat({ conversationId, initialMessages, onConversation, 
                 Du kannst auch deine eigene Analyse oder einen Screenshot vom Wettschein schicken.
               </motion.p>
               {demo && (
-                <div className="demo-banner">
-                  <Zap size={15} /> Demo-Modus: Trage <code>ANTHROPIC_API_KEY</code> in die <code>.env</code> ein, um echte Analysen zu bekommen.
-                </div>
+                onOpenSettings ? (
+                  <button className="demo-banner" onClick={onOpenSettings}>
+                    <Zap size={15} /> Demo-Modus: Tippe hier und trage deinen API-Schlüssel ein, um echte Analysen zu bekommen.
+                  </button>
+                ) : (
+                  <div className="demo-banner">
+                    <Zap size={15} /> Demo-Modus: Trage <code>ANTHROPIC_API_KEY</code> in die <code>.env</code> ein, um echte Analysen zu bekommen.
+                  </div>
+                )
               )}
               <div className="suggestions">
                 {SUGGESTIONS.map((s, i) => (

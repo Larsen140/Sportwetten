@@ -506,3 +506,16 @@ a { color: var(--accent-2); }
   .input { font-size: 16px; }
 }
 .mobile-top .orb { margin: 0 8px 0 4px; }
+
+/* ---------- Einstellungen ---------- */
+.settings { width: min(500px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; }
+.modal-close { position: absolute; top: 14px; right: 14px; }
+.input-wrap { position: relative; }
+.input-wrap .input { padding-right: 44px; }
+.input-eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--muted); padding: 6px; }
+.input-eye:hover { color: var(--text); }
+.settings-data { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }
+.btn.danger { color: var(--danger); }
+.spin { animation: spin 1s linear infinite; }
+button.demo-banner { cursor: pointer; font: inherit; font-size: 13px; }
+button.demo-banner:hover { background: rgba(255, 201, 77, 0.14); }

@@ -12,7 +12,9 @@ const post = (url, body) => fetch(url, {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}),
 });
 
-export const api = {
+export const IS_STATIC = import.meta.env?.VITE_STATIC === '1';
+
+const serverApi = {
   status: () => fetch('/api/status').then(json),
   login: (password) => post('/api/login', { password }).then(async (res) => {
     const data = await res.json().catch(() => ({}));
@@ -34,7 +36,7 @@ export const api = {
 };
 
 // Liest die Server-Sent Events des Chat-Endpunkts und ruft onEvent für jedes Event auf.
-export async function streamChat(body, onEvent, signal) {
+async function serverStreamChat(body, onEvent, signal) {
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -61,6 +63,18 @@ export async function streamChat(body, onEvent, signal) {
       if (line) onEvent(JSON.parse(line.slice(6)));
     }
   }
+}
+
+// Im GitHub-Pages-Modus läuft alles im Browser (lazy geladen, damit die Server-Variante schlank bleibt)
+const local = () => import('./local/backend.js');
+
+export const api = IS_STATIC
+  ? new Proxy({}, { get: (_t, name) => async (...args) => (await local()).localApi[name](...args) })
+  : serverApi;
+
+export async function streamChat(body, onEvent, signal) {
+  if (IS_STATIC) return (await local()).localStreamChat(body, onEvent, signal);
+  return serverStreamChat(body, onEvent, signal);
 }
 
 export const euro = (v) =>

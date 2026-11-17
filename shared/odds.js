@@ -1,12 +1,10 @@
-// Live-Quoten über The Odds API (https://the-odds-api.com), optional.
+// Live-Quoten über The Odds API (https://the-odds-api.com), optional. Läuft auf dem Server und im Browser.
 // Kosten pro Aufruf: Anzahl Märkte × Anzahl Regionen = 2 × 2 = 4 Credits.
 import { COMPETITIONS } from './prompt.js';
 
 const BASE = 'https://api.the-odds-api.com/v4';
 const cache = new Map(); // Ergebnisse 10 Minuten zwischenspeichern, um Credits zu sparen
 const TTL = 10 * 60 * 1000;
-
-export const liveOddsEnabled = () => !!process.env.ODDS_API_KEY;
 
 function best(bookmakers, marketKey, outcomeName, point) {
   let top = null;
@@ -38,7 +36,8 @@ function summarize(event) {
   };
 }
 
-export async function getLiveOdds({ competition, team_filter }) {
+export async function getLiveOdds({ competition, team_filter }, apiKey) {
+  if (!apiKey) return { error: 'Kein Quoten-API-Schlüssel hinterlegt. Bitte die Websuche nutzen.' };
   const sport = COMPETITIONS[competition];
   if (!sport) return { error: `Unbekannter Wettbewerb: ${competition}` };
 
@@ -51,7 +50,8 @@ export async function getLiveOdds({ competition, team_filter }) {
     url.searchParams.set('regions', 'eu,uk');
     url.searchParams.set('markets', 'h2h,totals');
     url.searchParams.set('oddsFormat', 'decimal');
-    const res = await fetch(url, { headers: { 'x-api-key': process.env.ODDS_API_KEY } });
+    url.searchParams.set('apiKey', apiKey); // Query-Parameter statt Header: vermeidet CORS-Preflight im Browser
+    const res = await fetch(url);
     if (!res.ok) {
       return { error: `Quoten-API antwortet mit ${res.status}. Bitte stattdessen die Websuche nutzen.` };
     }

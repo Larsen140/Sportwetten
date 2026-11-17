@@ -26,6 +26,3 @@ export const bets = load('bets.json', []);
 
 export const saveConversations = () => save('conversations.json', conversations);
 export const saveBets = () => save('bets.json', bets);
-
-export const newId = () =>
-  Date.now().toString(36) + Math.random().toString(36).slice(2, 8);

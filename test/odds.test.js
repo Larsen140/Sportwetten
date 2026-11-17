@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 process.env.ODDS_API_KEY = 'test';
-const { getLiveOdds } = await import('../server/odds.js');
+const { getLiveOdds } = await import('../shared/odds.js');
 
 const EVENTS = [{
   id: '1', commence_time: '2026-11-21T14:30:00Z', home_team: 'Bayern Munich', away_team: 'VfB Stuttgart',
@@ -21,10 +21,10 @@ test('Live-Quoten: beste Quote je Ausgang und Teamfilter', async () => {
   let calledUrl;
   globalThis.fetch = async (url, opts) => {
     calledUrl = String(url);
-    assert.equal(opts.headers['x-api-key'], 'test');
+    assert.match(String(url), /apiKey=test/);
     return { ok: true, json: async () => EVENTS };
   };
-  const res = await getLiveOdds({ competition: 'bundesliga', team_filter: 'bayern' });
+  const res = await getLiveOdds({ competition: 'bundesliga', team_filter: 'bayern' }, 'test');
   assert.match(calledUrl, /soccer_germany_bundesliga\/odds/);
   assert.equal(res.events.length, 1);
   const e = res.events[0];
@@ -34,6 +34,6 @@ test('Live-Quoten: beste Quote je Ausgang und Teamfilter', async () => {
 });
 
 test('Unbekannter Wettbewerb liefert Fehler statt Absturz', async () => {
-  const res = await getLiveOdds({ competition: 'kreisliga', team_filter: '' });
+  const res = await getLiveOdds({ competition: 'kreisliga', team_filter: '' }, 'test');
   assert.ok(res.error);
 });
