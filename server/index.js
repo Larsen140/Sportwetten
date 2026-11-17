@@ -3,7 +3,8 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
-import { SYSTEM_PROMPT, TOOLS, CARD_TOOLS } from './prompt.js';
+import { SYSTEM_PROMPT, buildTools, CARD_TOOLS } from './prompt.js';
+import { getLiveOdds, liveOddsEnabled } from './odds.js';
 import { conversations, bets, saveConversations, saveBets, newId } from './store.js';
 import { runDemo } from './demo.js';
 
@@ -14,9 +15,22 @@ const DEMO = !process.env.ANTHROPIC_API_KEY;
 const client = DEMO ? null : new Anthropic();
 
 const app = express();
+app.disable('x-powered-by');
+
+// Optionaler Passwortschutz (HTTP Basic Auth), wenn die App öffentlich erreichbar ist
+if (process.env.APP_PASSWORD) {
+  app.use((req, res, next) => {
+    const [, encoded = ''] = (req.headers.authorization || '').split(' ');
+    const [, pass = ''] = Buffer.from(encoded, 'base64').toString().split(':');
+    if (pass === process.env.APP_PASSWORD) return next();
+    res.set('WWW-Authenticate', 'Basic realm="LA Football"').status(401).send('Passwort erforderlich');
+  });
+}
+
 app.use(express.json({ limit: '25mb' }));
 
-app.get('/api/status', (_req, res) => res.json({ demo: DEMO, model: MODEL }));
+app.get('/api/status', (_req, res) =>
+  res.json({ demo: DEMO, model: MODEL, liveOdds: liveOddsEnabled() }));
 
 // ---------- Unterhaltungen ----------
 app.get('/api/conversations', (_req, res) => {
@@ -42,7 +56,7 @@ app.delete('/api/conversations/:id', (req, res) => {
 app.get('/api/bets', (_req, res) => res.json(bets));
 
 app.post('/api/bets', (req, res) => {
-  const { title, legs, totalOdds, stake, source } = req.body ?? {};
+  const { title, legs, totalOdds, stake, source, bookmaker } = req.body ?? {};
   const odds = Number(totalOdds);
   const amount = Number(stake);
   if (!title || !(odds > 1) || !(amount > 0)) {
@@ -56,7 +70,8 @@ app.post('/api/bets', (req, res) => {
     totalOdds: odds,
     stake: amount,
     status: 'open',
-    source: source === 'ki' ? 'ki' : 'manuell',
+    source: ['ki', 'import'].includes(source) ? source : 'manuell',
+    bookmaker: String(bookmaker || 'bet365').slice(0, 40),
   };
   bets.unshift(bet);
   saveBets();
@@ -86,6 +101,7 @@ function validateCard(name, input) {
   if (!input || typeof input !== 'object') return false;
   if (name === 'show_kombi') return Array.isArray(input.legs) && input.legs.length > 0;
   if (name === 'show_match_analysis') return !!input.probabilities && Array.isArray(input.markets);
+  if (name === 'show_bet_slip') return Array.isArray(input.legs) && input.legs.length > 0;
   return false;
 }
 
@@ -153,7 +169,7 @@ app.post('/api/chat', async (req, res) => {
 
   try {
     if (DEMO) {
-      await runDemo(text, send, uiMsg, pushText);
+      await runDemo(text, images.length > 0, send, uiMsg, pushText);
     } else {
       await runClaude(convo, send, uiMsg, pushText, () => aborted);
     }
@@ -193,7 +209,7 @@ async function runClaude(convo, send, uiMsg, pushText, isAborted) {
       output_config: { effort: 'high' },
       cache_control: { type: 'ephemeral' },
       system,
-      tools: TOOLS,
+      tools: buildTools({ liveOdds: liveOddsEnabled() }),
       messages: convo.messages,
     });
 
@@ -215,6 +231,10 @@ async function runClaude(convo, send, uiMsg, pushText, isAborted) {
         }
         if (b.type === 'tool_use' && CARD_TOOLS[b.name]) {
           send({ type: 'card_loading', kind: CARD_TOOLS[b.name] });
+        }
+        if (b.type === 'tool_use' && b.name === 'get_live_odds') {
+          uiMsg.parts.push({ type: 'odds' });
+          send({ type: 'odds' });
         }
       } else if (event.type === 'content_block_delta') {
         const d = event.delta;
@@ -256,7 +276,18 @@ async function runClaude(convo, send, uiMsg, pushText, isAborted) {
       return;
     }
 
-    const results = toolUses.map((tu) => {
+    const results = await Promise.all(toolUses.map(async (tu) => {
+      if (tu.name === 'get_live_odds') {
+        try {
+          const data = await getLiveOdds(tu.input || {});
+          const last = [...uiMsg.parts].reverse().find((p) => p.type === 'odds');
+          if (last) last.label = `${data.events?.length ?? 0} Spiele · ${tu.input?.competition}`;
+          send({ type: 'odds_done', label: last?.label });
+          return { type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(data), is_error: !!data.error };
+        } catch (err) {
+          return { type: 'tool_result', tool_use_id: tu.id, is_error: true, content: `Quoten nicht verfügbar: ${err.message}` };
+        }
+      }
       const kind = CARD_TOOLS[tu.name];
       if (!kind || !validateCard(tu.name, tu.input)) {
         return {
@@ -267,7 +298,7 @@ async function runClaude(convo, send, uiMsg, pushText, isAborted) {
       uiMsg.parts.push({ type: 'card', kind, data: tu.input });
       send({ type: 'card', kind, data: tu.input });
       return { type: 'tool_result', tool_use_id: tu.id, content: 'Karte wurde dem Nutzer angezeigt.' };
-    });
+    }));
     convo.messages.push({ role: 'user', content: results });
   }
 }
@@ -278,5 +309,5 @@ app.use(express.static(dist));
 app.get(/^\/(?!api).*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')));
 
 app.listen(PORT, () => {
-  console.log(`⚽ Oracle läuft auf http://localhost:${PORT}${DEMO ? '  (DEMO-Modus: kein API-Schlüssel)' : ''}`);
+  console.log(`⚽ LA Football läuft auf http://localhost:${PORT}${DEMO ? '  (DEMO-Modus: kein API-Schlüssel)' : ''}`);
 });

@@ -4,17 +4,19 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
   ArrowUp, Brain, ChevronDown, FileSearch, Globe, ImagePlus, Layers, MessageSquare,
-  NotebookPen, Search, ShieldCheck, Square, Target, X, Zap,
+  LineChart, NotebookPen, Wallet, ScanLine, Search, ShieldCheck, Square, Target, X, Zap,
 } from 'lucide-react';
 import { streamChat, downscaleImage } from '../api.js';
 import { sfx } from '../sound.js';
-import { AnalysisCard, KombiCard } from './Cards.jsx';
+import { AnalysisCard, KombiCard, SlipCard } from './Cards.jsx';
 
 const SUGGESTIONS = [
   { icon: Layers, title: 'Value-Kombi bauen', text: 'Bau mir eine 3er-Kombi für die Bundesliga an diesem Wochenende – nur Tipps mit Value.' },
   { icon: Target, title: 'Topspiel analysieren', text: 'Analysiere das wichtigste Bundesliga-Spiel an diesem Wochenende mit allen Märkten.' },
   { icon: ShieldCheck, title: 'Sichere Kombi ~2.0', text: 'Bau mir eine Kombi mit Gesamtquote um 2,0 und möglichst hoher Trefferwahrscheinlichkeit.' },
   { icon: Zap, title: 'Champions League', text: 'Welche Champions-League-Spiele diese Woche haben die besten Value-Wetten? Zeig mir die Top 3.' },
+  { icon: Wallet, title: 'Bankroll-Strategie', text: 'Erstelle mir eine Bankroll-Strategie für 500 € Startkapital mit klaren Einsatzregeln.' },
+  { icon: ScanLine, title: 'bet365-Schein prüfen', text: 'upload', hint: 'Lade einen Screenshot deines bet365-Wettscheins hoch. Die KI liest ihn aus und bewertet ihn.' },
 ];
 
 function Markdown({ text, live }) {
@@ -35,7 +37,7 @@ function Thinking({ text, live }) {
     <div className="thinking-box">
       <button className={`thinking-head ${live ? 'live' : ''}`} onClick={() => setOpen(!open)}>
         <Brain size={15} color="var(--violet)" />
-        <span className="label">{live ? 'Oracle denkt nach …' : 'Gedankengang'}</span>
+        <span className="label">{live ? 'Die KI analysiert …' : 'Gedankengang'}</span>
         <motion.span animate={{ rotate: open ? 180 : 0 }} style={{ marginLeft: 'auto', display: 'flex' }}>
           <ChevronDown size={15} />
         </motion.span>
@@ -61,8 +63,8 @@ function ToolGroup({ items, live }) {
       <div className="tools-row">
         {items.map((it, i) => (
           <motion.div key={i} className="tool-chip" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
-            {live && i === items.length - 1 ? <span className="ping" /> : it.type === 'search' ? <Search size={13} /> : <FileSearch size={13} />}
-            <span>{it.type === 'search' ? it.query : host(it.url)}</span>
+            {live && i === items.length - 1 ? <span className="ping" /> : it.type === 'search' ? <Search size={13} /> : it.type === 'odds' ? <LineChart size={13} /> : <FileSearch size={13} />}
+            <span>{it.type === 'search' ? it.query : it.type === 'odds' ? `Live-Quoten${it.label ? ` · ${it.label}` : ''}` : host(it.url)}</span>
           </motion.div>
         ))}
       </div>
@@ -83,7 +85,7 @@ function AssistantMessage({ msg, live, onBet }) {
   // Aufeinanderfolgende Such-/Abruf-Teile zu Gruppen zusammenfassen
   const groups = [];
   for (const part of msg.parts) {
-    const isTool = part.type === 'search' || part.type === 'fetch';
+    const isTool = part.type === 'search' || part.type === 'fetch' || part.type === 'odds';
     const last = groups.at(-1);
     if (isTool && last?.type === 'tools') last.items.push(part);
     else groups.push(isTool ? { type: 'tools', items: [part] } : part);
@@ -100,11 +102,13 @@ function AssistantMessage({ msg, live, onBet }) {
           if (g.type === 'text') return <Markdown key={i} text={g.text} live={live && i === lastIdx} />;
           if (g.type === 'error') return <div key={i} className="err-box">{g.text}</div>;
           if (g.type === 'loading') return (
-            <div key={i} className="skeleton">{g.kind === 'kombi' ? 'Wettschein wird erstellt …' : 'Analyse wird erstellt …'}</div>
+            <div key={i} className="skeleton">{{ kombi: 'Wettschein wird erstellt …', slip: 'Wettschein wird ausgelesen …' }[g.kind] || 'Analyse wird erstellt …'}</div>
           );
-          if (g.type === 'card') return g.kind === 'kombi'
-            ? <KombiCard key={i} data={g.data} onBet={onBet} />
-            : <AnalysisCard key={i} data={g.data} onBet={onBet} />;
+          if (g.type === 'card') {
+            if (g.kind === 'kombi') return <KombiCard key={i} data={g.data} onBet={onBet} />;
+            if (g.kind === 'slip') return <SlipCard key={i} data={g.data} onBet={onBet} />;
+            return <AnalysisCard key={i} data={g.data} onBet={onBet} />;
+          }
           return null;
         })}
       </div>
@@ -209,6 +213,17 @@ export default function Chat({ conversationId, initialMessages, onConversation, 
               sfx.search();
               updateAssistant((m) => { m.parts.push(ev.type === 'search' ? { type: 'search', query: ev.query } : { type: 'fetch', url: ev.url }); });
               break;
+            case 'odds':
+              sfx.search();
+              updateAssistant((m) => { m.parts.push({ type: 'odds' }); });
+              break;
+            case 'odds_done':
+              updateAssistant((m) => {
+                for (let i = m.parts.length - 1; i >= 0; i--) {
+                  if (m.parts[i].type === 'odds') { m.parts[i] = { ...m.parts[i], label: ev.label }; break; }
+                }
+              });
+              break;
             case 'sources':
               updateAssistant((m) => {
                 for (let i = m.parts.length - 1; i >= 0; i--) {
@@ -265,7 +280,7 @@ export default function Chat({ conversationId, initialMessages, onConversation, 
                 Welches Spiel <span className="gradient-text">knacken</span> wir heute?
               </motion.h1>
               <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-                Oracle recherchiert live Form, xG, Ausfälle und Quoten, rechnet Wahrscheinlichkeiten aus und sucht Value.
+                Der KI-Experte recherchiert live Form, xG, Ausfälle und Quoten, rechnet Wahrscheinlichkeiten aus und sucht Value.
                 Du kannst auch deine eigene Analyse oder einen Screenshot vom Wettschein schicken.
               </motion.p>
               {demo && (
@@ -277,10 +292,10 @@ export default function Chat({ conversationId, initialMessages, onConversation, 
                 {SUGGESTIONS.map((s, i) => (
                   <motion.button key={i} className="suggestion" onMouseEnter={sfx.hover}
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 + i * 0.08 }}
-                    onClick={() => send(s.text)}>
+                    onClick={() => { if (s.text === 'upload') { setInput('Lies meinen Wettschein aus und bewerte ihn.'); fileRef.current.click(); } else send(s.text); }}>
                     <div className="s-icon"><s.icon size={18} /></div>
                     <b>{s.title}</b>
-                    <small>{s.text}</small>
+                    <small>{s.hint || s.text}</small>
                   </motion.button>
                 ))}
               </div>
@@ -315,8 +330,8 @@ export default function Chat({ conversationId, initialMessages, onConversation, 
             rows={1}
             value={input}
             placeholder={mode === 'review'
-              ? 'Füge deine Analyse ein – Oracle prüft sie und sagt dir, was fehlt …'
-              : 'Frag Oracle: Spiel analysieren, Kombi bauen, Quoten prüfen …'}
+              ? 'Füge deine Analyse ein – die KI prüft sie und sagt dir, was fehlt …'
+              : 'Frag den KI-Experten: Spiel analysieren, Kombi bauen, Quoten prüfen …'}
             onChange={(e) => setInput(e.target.value)}
             onPaste={(e) => { if (e.clipboardData.files.length) addFiles(e.clipboardData.files); }}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
@@ -344,7 +359,7 @@ export default function Chat({ conversationId, initialMessages, onConversation, 
             )}
           </div>
         </div>
-        <div className="hint">Oracle liefert Wahrscheinlichkeiten, keine Garantien. Wette nur mit Geld, dessen Verlust du verkraften kannst. 18+</div>
+        <div className="hint">LA Football liefert Wahrscheinlichkeiten, keine Garantien. Wette nur mit Geld, dessen Verlust du verkraften kannst. 18+</div>
       </div>
     </>
   );

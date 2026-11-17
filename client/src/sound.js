@@ -2,7 +2,7 @@
 let ctx = null;
 let master = null;
 let muted = (() => {
-  try { return localStorage.getItem('oracle-muted') === '1'; } catch { return false; }
+  try { return localStorage.getItem('lafootball-muted') === '1'; } catch { return false; }
 })();
 
 function audio() {
@@ -78,5 +78,5 @@ export const sfx = {
 export function isMuted() { return muted; }
 export function setMuted(v) {
   muted = v;
-  try { localStorage.setItem('oracle-muted', v ? '1' : '0'); } catch { /* ignorieren */ }
+  try { localStorage.setItem('lafootball-muted', v ? '1' : '0'); } catch { /* ignorieren */ }
 }

@@ -1,11 +1,12 @@
 {
-  "name": "oracle-sportwetten",
+  "name": "la-football",
   "version": "1.0.0",
-  "description": "Oracle – KI-Analyse für Fußballwetten",
+  "description": "LA Football – KI-Experte für Fußballwetten",
   "scripts": {
     "dev": "concurrently -k -n api,web -c green,cyan \"node --watch server/index.js\" \"vite\"",
     "build": "vite build",
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "test": "node --test test/*.test.js"
   },
   "repository": {
     "type": "git",
@@ -33,5 +34,8 @@
     "vite": "^8.3.8"
   },
   "type": "module",
-  "private": true
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
 }

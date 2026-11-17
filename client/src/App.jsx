@@ -145,15 +145,15 @@ export default function App() {
         <div className="mobile-top">
           <button className="icon-btn" onClick={() => setMenu(true)} aria-label="Menü"><Menu size={18} /></button>
           <div className={`orb ${busy ? 'thinking' : ''}`} style={{ '--s': '26px' }} />
-          <div className="brand-name">ORACLE</div>
+          <div className="brand-name"><span className="gradient-text">LA</span> FOOTBALL</div>
         </div>
 
         <aside className={`sidebar ${menu ? 'open' : ''}`}>
           <div className="brand">
             <div className={`orb ${busy ? 'thinking' : ''}`} />
             <div>
-              <div className="brand-name">ORACLE</div>
-              <div className="brand-sub">KI-Wettanalyse</div>
+              <div className="brand-name"><span className="gradient-text">LA</span> FOOTBALL</div>
+              <div className="brand-sub">KI-Wettexperte</div>
             </div>
           </div>
 
@@ -195,6 +195,7 @@ export default function App() {
               {status.demo
                 ? <span className="badge gold">Demo-Modus</span>
                 : <span className="badge green">KI online</span>}
+              {status.liveOdds && <span className="badge cyan">Live-Quoten</span>}
             </div>
           </div>
         </aside>

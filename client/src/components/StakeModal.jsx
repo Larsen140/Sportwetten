@@ -8,7 +8,8 @@ export default function StakeModal({ draft, onClose, onSave }) {
   const manual = !draft.legs?.length;
   const [title, setTitle] = useState(draft.title || '');
   const [odds, setOdds] = useState(draft.totalOdds ? String(draft.totalOdds) : '');
-  const [stake, setStake] = useState('10');
+  const [stake, setStake] = useState(draft.stake ? String(draft.stake) : '10');
+  const [bookmaker, setBookmaker] = useState(draft.bookmaker && draft.bookmaker !== 'unbekannt' ? draft.bookmaker : 'bet365');
   const o = parseFloat(String(odds).replace(',', '.'));
   const s = parseFloat(String(stake).replace(',', '.'));
   const valid = title.trim() && o > 1 && s > 0;
@@ -16,7 +17,7 @@ export default function StakeModal({ draft, onClose, onSave }) {
   function submit(e) {
     e.preventDefault();
     if (!valid) return;
-    onSave({ title: title.trim(), legs: draft.legs || [], totalOdds: o, stake: s, source: manual ? 'manuell' : 'ki' });
+    onSave({ title: title.trim(), legs: draft.legs || [], totalOdds: o, stake: s, bookmaker: bookmaker.trim() || 'bet365', source: draft.source || 'manuell' });
   }
 
   return (
@@ -51,6 +52,13 @@ export default function StakeModal({ draft, onClose, onSave }) {
           {[5, 10, 20, 50].map((v) => (
             <button type="button" key={v} className="chip" onClick={() => setStake(String(v))}>{v} €</button>
           ))}
+        </div>
+        <div className="field">
+          <label htmlFor="bm">Buchmacher</label>
+          <input id="bm" className="input" list="bookmakers" value={bookmaker} onChange={(e) => setBookmaker(e.target.value)} />
+          <datalist id="bookmakers">
+            {['bet365', 'Tipico', 'bwin', 'Betano', 'Interwetten', 'Bet-at-home', 'Unibet', 'Pinnacle'].map((b) => <option key={b} value={b} />)}
+          </datalist>
         </div>
         <div className="payout">
           <span>Mögliche Auszahlung</span>

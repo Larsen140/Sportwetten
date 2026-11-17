@@ -61,7 +61,30 @@ const ANALYSIS = {
   verdict: 'Bester Value: Über 2,5 Tore zur Quote 1,70.',
 };
 
-export async function runDemo(text, send, uiMsg, pushText) {
+const SLIP = {
+  bookmaker: 'bet365',
+  legs: [
+    { match: 'FC Bayern – VfB Stuttgart', market: 'Endergebnis', pick: 'FC Bayern', odds: 1.38, probability: 71 },
+    { match: 'Borussia Dortmund – Eintracht Frankfurt', market: 'Tore Über/Unter', pick: 'Über 2,5', odds: 1.7, probability: 64 },
+  ],
+  total_odds: 2.35,
+  stake: 10,
+  assessment: 'DEMO: Der Bayern-Tipp hat kaum Value (faire Quote 1,41). Über 2,5 in Dortmund ist der stärkere Teil des Scheins.',
+  rating: 'okay',
+};
+
+export async function runDemo(text, hasImages, send, uiMsg, pushText) {
+  if (hasImages) {
+    send({ type: 'thinking', text: 'Demo-Modus: Lese den Wettschein aus …' });
+    uiMsg.thinking += 'Demo-Modus: Lese den Wettschein aus …';
+    await sleep(800);
+    await stream('**Demo-Modus:** So sieht ein erkannter Wettschein aus. Mit API-Schlüssel liest die KI deinen echten Screenshot aus.\n\n', send, pushText);
+    send({ type: 'card_loading', kind: 'slip' });
+    await sleep(800);
+    uiMsg.parts.push({ type: 'card', kind: 'slip', data: SLIP });
+    send({ type: 'card', kind: 'slip', data: SLIP });
+    return;
+  }
   const wantsKombi = /kombi|schein|tipp/i.test(text);
   const thinking =
     'Demo-Modus aktiv: Ich simuliere die Recherche. Prüfe Form, xG-Werte, Verletzungen und Quoten … ' +
@@ -82,7 +105,7 @@ export async function runDemo(text, send, uiMsg, pushText) {
   }
 
   await stream(
-    '**Demo-Modus** – es ist noch kein API-Schlüssel hinterlegt. So sieht eine Antwort aus, sobald du `ANTHROPIC_API_KEY` in der `.env` einträgst. Die Zahlen unten sind **Beispieldaten**.\n\n',
+    '**Demo-Modus:** Es ist noch kein API-Schlüssel hinterlegt. So sieht eine Antwort aus, sobald du `ANTHROPIC_API_KEY` in der `.env` einträgst. Die Zahlen unten sind **Beispieldaten**.\n\n',
     send, pushText,
   );
 

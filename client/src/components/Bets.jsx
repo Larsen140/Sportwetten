@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Plus, RotateCcw, Ticket, Trash2, X, Ban, Bot } from 'lucide-react';
+import { Check, Plus, RotateCcw, ScanLine, Ticket, Trash2, X, Ban, Bot } from 'lucide-react';
 import { betProfit, euro, fmt } from '../api.js';
 import { sfx } from '../sound.js';
 
@@ -20,6 +20,8 @@ export function BetRow({ bet, onStatus, onDelete, compact }) {
           {bet.title}
           <span className={`badge ${color}`}>{label}</span>
           {bet.source === 'ki' && <span className="badge cyan"><Bot size={11} /> KI</span>}
+          {bet.source === 'import' && <span className="badge cyan"><ScanLine size={11} /> Import</span>}
+          {bet.bookmaker && <span className="badge">{bet.bookmaker}</span>}
         </div>
         {!compact && bet.legs?.length > 0 && (
           <div className="bet-legs">
@@ -37,7 +39,7 @@ export function BetRow({ bet, onStatus, onDelete, compact }) {
       </div>
       <div className="bet-actions">
         <div className={`bet-result ${profit > 0 ? 'pos' : profit < 0 ? 'neg' : ''}`}>
-          {bet.status === 'won' || bet.status === 'lost' ? `${profit > 0 ? '+' : ''}${euro(profit)}` : bet.status === 'void' ? '±0 €' : '…'}
+          {bet.status === 'won' || bet.status === 'lost' ? `${profit > 0 ? '+' : ''}${euro(profit)}` : bet.status === 'void' ? '±0 €' : 'läuft'}
         </div>
         {onStatus && (bet.status === 'open' ? (
           <>

@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion';
-import { Activity, AlertTriangle, CheckCircle2, Crosshair, Layers, Sparkles, Ticket, TrendingUp } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle2, Crosshair, ExternalLink, Layers, ScanLine, Sparkles, Ticket, TrendingUp } from 'lucide-react';
+
+export const BET365_URL = 'https://www.bet365.com/';
 import CountUp from './CountUp.jsx';
 import { fmt } from '../api.js';
 import { sfx } from '../sound.js';
@@ -114,7 +116,7 @@ export function AnalysisCard({ data, onBet }) {
                       <td>
                         {n(m.bookmaker_odds) > 1 && (
                           <button className="btn ghost sm" title="Auf Wettschein"
-                            onClick={() => { sfx.click(); onBet({ title: `${data.match}: ${m.pick}`, legs: [{ match: data.match, market: m.market, pick: m.pick, odds: m.bookmaker_odds }], totalOdds: m.bookmaker_odds }); }}>
+                            onClick={() => { sfx.click(); onBet({ title: `${data.match}: ${m.pick}`, legs: [{ match: data.match, market: m.market, pick: m.pick, odds: m.bookmaker_odds }], totalOdds: m.bookmaker_odds, source: 'ki' }); }}>
                             <Ticket size={15} />
                           </button>
                         )}
@@ -206,18 +208,93 @@ export function KombiCard({ data, onBet }) {
           <div><TrendingUp size={13} /> Erwartungswert<b className={ev >= 0 ? 'pos' : 'neg'}>{ev >= 0 ? '+' : ''}{fmt(ev, 1)}%</b></div>
           <div><Activity size={13} /> Einsatz-Empfehlung<b>{fmt(data.stake_suggestion_percent, 1)}% Bankroll</b></div>
         </div>
-        <button className="btn primary" onClick={() => {
-          sfx.click();
-          onBet({
-            title: data.title,
-            legs: legs.map(({ match, market, pick, odds }) => ({ match, market, pick, odds })),
-            totalOdds: data.total_odds,
-          });
-        }}>
-          <Ticket size={17} /> Auf Wettschein
-        </button>
+        <div className="foot-actions">
+          <button className="btn primary" onClick={() => {
+            sfx.click();
+            onBet({
+              title: data.title,
+              legs: legs.map(({ match, market, pick, odds }) => ({ match, market, pick, odds })),
+              totalOdds: data.total_odds,
+              source: 'ki',
+            });
+          }}>
+            <Ticket size={17} /> Auf Wettschein
+          </button>
+          <a className="btn sm ghost" href={BET365_URL} target="_blank" rel="noreferrer" onClick={sfx.click}>
+            Bei bet365 öffnen <ExternalLink size={13} />
+          </a>
+        </div>
       </div>
       {data.summary && <div className="card-sec card-sub" style={{ borderTop: '1px solid var(--border)' }}>{data.summary}</div>}
+    </motion.div>
+  );
+}
+
+const RATING = { stark: 'green', okay: 'gold', schwach: 'red' };
+
+export function SlipCard({ data, onBet }) {
+  const legs = data.legs || [];
+  const stake = n(data.stake);
+  return (
+    <motion.div className="panel card" {...cardMotion}>
+      <div className="card-glow" />
+      <div className="card-top">
+        <div>
+          <div className="card-kicker"><ScanLine size={13} /> Wettschein erkannt · {data.bookmaker}</div>
+          <div className="card-title">{legs.length === 1 ? 'Einzelwette' : `${legs.length}er-Kombi`}</div>
+        </div>
+        <span className={`badge ${RATING[data.rating] || 'gold'}`}>Bewertung: {data.rating}</span>
+      </div>
+      <div className="legs">
+        {legs.map((l, i) => {
+          const value = (n(l.probability) / 100) * n(l.odds) * 100 - 100;
+          return (
+            <motion.div className="leg" key={i} {...stagger(i)}>
+              <div className="leg-n">{i + 1}</div>
+              <div style={{ minWidth: 0 }}>
+                <div className="leg-match">{l.match}</div>
+                <div className="card-sub">{l.market}</div>
+                <div className="leg-pick">{l.pick}</div>
+                <div className="pbar">
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, n(l.probability))}%` }}
+                    transition={{ duration: 1, delay: 0.4 + i * 0.1 }} />
+                </div>
+              </div>
+              <div className="leg-odds">
+                <div className="o">{fmt(l.odds)}</div>
+                <div className="p">{fmt(l.probability, 0)}% · <span className={value >= 0 ? 'pos' : 'neg'}>{value >= 0 ? '+' : ''}{fmt(value, 0)}%</span></div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+      <div className="ticket-notch" />
+      <div className="ticket-foot">
+        <div className="total-odds">
+          <div className="label">Gesamtquote</div>
+          <div className="big"><CountUp value={n(data.total_odds)} format={(v) => fmt(v)} duration={1200} /></div>
+        </div>
+        <div className="foot-stats">
+          <div>Einsatz<b>{stake > 0 ? `${fmt(stake)} €` : '–'}</b></div>
+          <div>Mögl. Auszahlung<b>{stake > 0 ? `${fmt(stake * n(data.total_odds))} €` : '–'}</b></div>
+        </div>
+        <div className="foot-actions">
+          <button className="btn primary" onClick={() => {
+            sfx.click();
+            onBet({
+              title: legs.length === 1 ? `${legs[0].match}: ${legs[0].pick}` : `${data.bookmaker} ${legs.length}er-Kombi`,
+              legs: legs.map(({ match, market, pick, odds }) => ({ match, market, pick, odds })),
+              totalOdds: data.total_odds,
+              stake: stake || undefined,
+              bookmaker: data.bookmaker,
+              source: 'import',
+            });
+          }}>
+            <Ticket size={17} /> In Tracker übernehmen
+          </button>
+        </div>
+      </div>
+      {data.assessment && <div className="verdict" style={{ fontWeight: 500 }}><Sparkles size={18} color="var(--accent)" style={{ flexShrink: 0 }} />{data.assessment}</div>}
     </motion.div>
   );
 }
