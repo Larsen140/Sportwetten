@@ -2,14 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import {
-  BrainCircuit, CheckCircle2, LayoutDashboard, Menu, Plus, Ticket, Trash2, Volume2, VolumeX, AlertCircle,
+  BrainCircuit, CheckCircle2, LayoutDashboard, LogOut, Menu, Plus, Ticket, Trash2, Volume2, VolumeX, AlertCircle,
 } from 'lucide-react';
 import Background from './components/Background.jsx';
 import Chat from './components/Chat.jsx';
 import Dashboard from './components/Dashboard.jsx';
 import Bets from './components/Bets.jsx';
 import StakeModal from './components/StakeModal.jsx';
-import { api, betProfit, computeStats, euro } from './api.js';
+import Login from './components/Login.jsx';
+import { api, betProfit, computeStats, euro, setUnauthorizedHandler } from './api.js';
 import { sfx, isMuted, setMuted } from './sound.js';
 
 const NAV = [
@@ -38,6 +39,7 @@ export default function App() {
   const [muted, setMutedState] = useState(isMuted());
   const [busy, setBusy] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [auth, setAuth] = useState('checking'); // checking | locked | ok
 
   const toast = useCallback((text, type = 'success') => {
     const id = Math.random();
@@ -45,11 +47,32 @@ export default function App() {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200);
   }, []);
 
-  useEffect(() => {
-    api.status().then(setStatus).catch(() => {});
-    api.bets().then(setBets).catch(() => toast('Server nicht erreichbar', 'error'));
-    api.conversations().then(setConvos).catch(() => {});
+  const loadAll = useCallback(async () => {
+    try {
+      const st = await api.status();
+      setStatus(st);
+      if (st.authRequired && !st.authed) { setAuth('locked'); return; }
+      setAuth('ok');
+      api.bets().then(setBets).catch(() => {});
+      api.conversations().then(setConvos).catch(() => {});
+    } catch {
+      setAuth('ok');
+      toast('Server nicht erreichbar', 'error');
+    }
   }, [toast]);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => setAuth('locked'));
+    loadAll();
+  }, [loadAll]);
+
+  async function logout() {
+    await api.logout().catch(() => {});
+    setBets([]);
+    setConvos([]);
+    setChat((c) => ({ key: c.key + 1, id: null, messages: [] }));
+    setAuth('locked');
+  }
 
   function go(p) {
     if (p !== page) sfx.nav();
@@ -138,6 +161,15 @@ export default function App() {
 
   const stats = computeStats(bets);
 
+  if (auth !== 'ok') {
+    return (
+      <>
+        <Background />
+        {auth === 'locked' && <Login onSuccess={loadAll} />}
+      </>
+    );
+  }
+
   return (
     <>
       <Background intensity={busy ? 3 : 1} />
@@ -196,6 +228,9 @@ export default function App() {
                 ? <span className="badge gold">Demo-Modus</span>
                 : <span className="badge green">KI online</span>}
               {status.liveOdds && <span className="badge cyan">Live-Quoten</span>}
+              {status.authRequired && (
+                <button className="icon-btn" style={{ marginLeft: 'auto' }} onClick={logout} title="Abmelden"><LogOut size={16} /></button>
+              )}
             </div>
           </div>
         </aside>

@@ -487,3 +487,22 @@ a { color: var(--accent-2); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
+
+/* ---------- Login ---------- */
+.login { position: relative; z-index: 1; min-height: 100%; display: grid; place-items: center; padding: 24px 16px; }
+.login-box { width: min(380px, 100%); padding: 32px 26px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.login-box h1 { font-family: var(--display); letter-spacing: 0.1em; font-size: 26px; margin: 10px 0 0; }
+.login-box p { margin: 0; color: var(--muted); font-size: 14px; }
+.login-box .field { text-align: left; }
+.login-box label { display: flex; align-items: center; gap: 6px; }
+
+/* ---------- iPhone: Notch und Home-Leiste ---------- */
+.sidebar { padding-top: max(22px, env(safe-area-inset-top)); padding-bottom: max(22px, env(safe-area-inset-bottom)); }
+.composer-wrap { padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+.toasts { bottom: max(20px, env(safe-area-inset-bottom)); }
+@media (max-width: 820px) {
+  .mobile-top { padding-top: max(12px, env(safe-area-inset-top)); }
+  .composer textarea { font-size: 16px; } /* verhindert Auto-Zoom in iOS Safari */
+  .input { font-size: 16px; }
+}
+.mobile-top .orb { margin: 0 8px 0 4px; }

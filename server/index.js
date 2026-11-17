@@ -7,6 +7,7 @@ import { SYSTEM_PROMPT, buildTools, CARD_TOOLS } from './prompt.js';
 import { getLiveOdds, liveOddsEnabled } from './odds.js';
 import { conversations, bets, saveConversations, saveBets, newId } from './store.js';
 import { runDemo } from './demo.js';
+import { authEnabled, isAuthed, login, logout, requireAuth } from './auth.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 8787;
@@ -17,20 +18,16 @@ const client = DEMO ? null : new Anthropic();
 const app = express();
 app.disable('x-powered-by');
 
-// Optionaler Passwortschutz (HTTP Basic Auth), wenn die App öffentlich erreichbar ist
-if (process.env.APP_PASSWORD) {
-  app.use((req, res, next) => {
-    const [, encoded = ''] = (req.headers.authorization || '').split(' ');
-    const [, pass = ''] = Buffer.from(encoded, 'base64').toString().split(':');
-    if (pass === process.env.APP_PASSWORD) return next();
-    res.set('WWW-Authenticate', 'Basic realm="LA Football"').status(401).send('Passwort erforderlich');
-  });
-}
+app.set('trust proxy', 1); // hinter Render/Proxy: korrekte IP und HTTPS-Erkennung
 
 app.use(express.json({ limit: '25mb' }));
 
-app.get('/api/status', (_req, res) =>
-  res.json({ demo: DEMO, model: MODEL, liveOdds: liveOddsEnabled() }));
+app.get('/api/status', (req, res) =>
+  res.json({ demo: DEMO, model: MODEL, liveOdds: liveOddsEnabled(), authRequired: authEnabled(), authed: isAuthed(req) }));
+app.post('/api/login', login);
+app.post('/api/logout', logout);
+app.get('/api/health', (_req, res) => res.json({ ok: true }));
+app.use('/api', requireAuth);
 
 // ---------- Unterhaltungen ----------
 app.get('/api/conversations', (_req, res) => {

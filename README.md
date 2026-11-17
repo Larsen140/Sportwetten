@@ -13,6 +13,7 @@ LA Football ist eine Webapp mit einem KI-Sportwetten-Experten für Fußball (Cla
 | **Eigene Analysen prüfen** | Modus „Meine Analyse prüfen“: Die KI prüft deine Analyse kritisch und recherchiert die Fakten nach |
 | **Live-Quoten (optional)** | Echte Quoten vieler Buchmacher über The Odds API, mit automatischer Suche nach der besten Quote |
 | **Wettschein & Dashboard** | Wetten mit Buchmacher speichern, als gewonnen oder verloren markieren, Gewinnkurve, ROI, Trefferquote und größter Gewinn |
+| **iPhone-App** | Als App auf den Home-Bildschirm legen: eigenes Icon, Vollbild, angepasst an Notch und Home-Leiste |
 | **Design** | Animierter Partikel-Hintergrund, Glow-Effekte, animierte Zahlen und Diagramme, Konfetti bei Gewinnen, Soundeffekte (abschaltbar), für Handy optimiert |
 
 ## Schnellstart
@@ -32,6 +33,19 @@ npm run build
 npm start                 # http://localhost:8787
 ```
 
+## Auf dem iPhone nutzen (ohne Computer, über Render)
+
+Render holt die App direkt aus diesem GitHub-Repository und lässt sie dauerhaft online laufen. Alles geht im iPhone-Browser.
+
+1. **API-Schlüssel holen:** Auf https://console.anthropic.com anmelden, Guthaben aufladen und unter „API Keys“ einen Schlüssel erstellen.
+2. **Bei Render anmelden:** https://render.com öffnen und mit GitHub anmelden. Render den Zugriff auf dieses Repository erlauben.
+3. **Blueprint anlegen:** „New“ → „Blueprint“ → dieses Repository und den Branch mit der App auswählen. Render liest die Datei `render.yaml`.
+4. **Werte eintragen:** `ANTHROPIC_API_KEY` und `APP_PASSWORD` (dein Login-Passwort) eintragen. `ODDS_API_KEY` ist optional.
+5. **Bestätigen** und ein paar Minuten warten, bis der Build fertig ist. Render zeigt dann die Adresse der App, zum Beispiel `https://la-football.onrender.com`.
+6. **Auf den Home-Bildschirm:** Die Adresse in Safari öffnen, anmelden, dann **Teilen → „Zum Home-Bildschirm“**. LA Football startet danach im Vollbild mit eigenem Icon.
+
+`render.yaml` nutzt den Tarif „Starter“ (etwa 7 $ pro Monat) mit einer Festplatte, damit Wetten und Chats dauerhaft gespeichert bleiben. Im kostenlosen Tarif schläft die App nach 15 Minuten ein und verliert bei jedem Neustart ihre Daten.
+
 Mit Docker:
 
 ```bash
@@ -45,7 +59,7 @@ docker run -p 8787:8787 --env-file .env -v la-football-data:/app/data la-footbal
 |---|---|---|
 | `ANTHROPIC_API_KEY` | ja* | Schlüssel von https://console.anthropic.com. Ohne ihn läuft die App im **Demo-Modus** mit Beispieldaten. |
 | `ODDS_API_KEY` | nein | Schlüssel von https://the-odds-api.com für Live-Quoten. Die kostenlose Stufe hat 500 Credits pro Monat, ein Abruf kostet 4 Credits und wird 10 Minuten zwischengespeichert. |
-| `APP_PASSWORD` | nein | Passwortschutz, wenn die App im Internet erreichbar ist. Der Benutzername ist beliebig. |
+| `APP_PASSWORD` | nein* | Login-Passwort. **Pflicht, sobald die App im Internet erreichbar ist**, sonst kann jeder deinen API-Schlüssel benutzen. Die Anmeldung bleibt ein Jahr gespeichert. |
 | `PORT` | nein | Port des Servers, Standard 8787 |
 
 ## bet365
@@ -61,7 +75,7 @@ The Odds API liefert für Fußball keine bet365-Quoten, dafür die Quoten vieler
 ## Entwicklung
 
 ```bash
-npm test                  # automatische Tests (Statistiken, Live-Quoten)
+npm test                  # automatische Tests (Statistiken, Live-Quoten, Login)
 ```
 
 GitHub Actions führt bei jedem Push die Tests und den Build aus (`.github/workflows/ci.yml`).
@@ -70,7 +84,8 @@ GitHub Actions führt bei jedem Push die Tests und den Build aus (`.github/workf
 
 ```
 server/
-  index.js     Express-Server, KI-Chat (Streaming), Wetten-API, Passwortschutz
+  index.js     Express-Server, KI-Chat (Streaming), Wetten-API
+  auth.js      Login mit Passwort und Cookie, Sperre nach Fehlversuchen
   prompt.js    Experten-Systemprompt und Tool-Definitionen
   odds.js      Live-Quoten (The Odds API)
   demo.js      Demo-Modus ohne API-Schlüssel

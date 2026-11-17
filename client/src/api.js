@@ -1,11 +1,25 @@
+let onUnauthorized = () => {};
+export function setUnauthorizedHandler(fn) { onUnauthorized = fn; }
+
 async function json(res) {
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && data.auth) onUnauthorized();
   if (!res.ok) throw new Error(data.error || `Fehler ${res.status}`);
   return data;
 }
 
+const post = (url, body) => fetch(url, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}),
+});
+
 export const api = {
   status: () => fetch('/api/status').then(json),
+  login: (password) => post('/api/login', { password }).then(async (res) => {
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Anmeldung fehlgeschlagen');
+    return data;
+  }),
+  logout: () => post('/api/logout').then(json),
   conversations: () => fetch('/api/conversations').then(json),
   conversation: (id) => fetch(`/api/conversations/${id}`).then(json),
   deleteConversation: (id) => fetch(`/api/conversations/${id}`, { method: 'DELETE' }).then(json),
@@ -29,6 +43,7 @@ export async function streamChat(body, onEvent, signal) {
   });
   if (!res.ok || !res.body) {
     const data = await res.json().catch(() => ({}));
+    if (res.status === 401 && data.auth) onUnauthorized();
     throw new Error(data.error || `Fehler ${res.status}`);
   }
   const reader = res.body.getReader();

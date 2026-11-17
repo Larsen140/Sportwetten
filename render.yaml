@@ -1,0 +1,22 @@
+# Render-Blueprint: In Render "New" → "Blueprint" wählen und dieses Repository verbinden.
+services:
+  - type: web
+    name: la-football
+    runtime: node
+    plan: starter            # ca. 7 $/Monat, läuft dauerhaft; "free" schläft nach 15 Min. und verliert Daten
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ANTHROPIC_API_KEY
+        sync: false          # wird beim Einrichten abgefragt
+      - key: APP_PASSWORD
+        sync: false          # wird beim Einrichten abgefragt
+      - key: ODDS_API_KEY
+        sync: false          # optional, leer lassen möglich
+    disk:
+      name: la-football-data # speichert Wetten und Chats dauerhaft
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
